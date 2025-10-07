@@ -1,0 +1,52 @@
+Connected to database successfully
+2025/08/27 15:59:28 Error inserting category: pq: null value in column "created_at" of relation "warehouse_category" violates not-null constraint
+Default master data created
+[GIN-debug] [WARNING] Creating an Engine instance with the Logger and Recovery middleware already attached.
+
+[GIN-debug] [WARNING] Running in "debug" mode. Switch to "release" mode in production.
+ - using env:	export GIN_MODE=release
+ - using code:	gin.SetMode(gin.ReleaseMode)
+
+[GIN-debug] POST   /api/auth/login           --> wms-backend/internal/handlers.(*Handler).LoginGin-fm (4 handlers)
+[GIN-debug] POST   /api/auth/register        --> wms-backend/internal/handlers.(*Handler).RegisterGin-fm (4 handlers)
+[GIN-debug] POST   /api/penerimaan           --> wms-backend/internal/handlers.(*Handler).CreatePenerimaan-fm (4 handlers)
+[GIN-debug] GET    /api/penerimaan           --> wms-backend/internal/handlers.(*Handler).GetPenerimaan-fm (4 handlers)
+[GIN-debug] POST   /api/penerimaan/:id/detail --> wms-backend/internal/handlers.(*Handler).AddDetailPenerimaan-fm (4 handlers)
+[GIN-debug] GET    /api/penerimaan/:id/detail --> wms-backend/internal/handlers.(*Handler).GetDetailPenerimaan-fm (4 handlers)
+[GIN-debug] POST   /api/detail/:detailId/pemeriksaan --> wms-backend/internal/handlers.(*Handler).CreatePemeriksaanKualitas-fm (4 handlers)
+[GIN-debug] PUT    /api/penerimaan/:id/complete --> wms-backend/internal/handlers.(*Handler).CompletePenerimaan-fm (4 handlers)
+[GIN-debug] GET    /api/stock-opnames        --> wms-backend/internal/handlers.(*Handler).GetStockOpnames-fm (4 handlers)
+[GIN-debug] POST   /api/stock-opnames        --> wms-backend/internal/handlers.(*Handler).CreateStockOpname-fm (4 handlers)
+[GIN-debug] GET    /api/stock-movements      --> wms-backend/internal/handlers.(*Handler).GetStockMovements-fm (4 handlers)
+[GIN-debug] POST   /api/stock-movements      --> wms-backend/internal/handlers.(*Handler).CreateStockMovement-fm (4 handlers)
+[GIN-debug] GET    /api/receptions           --> wms-backend/internal/handlers.(*Handler).GetReceptions-fm (4 handlers)
+[GIN-debug] POST   /api/receptions           --> wms-backend/internal/handlers.(*Handler).CreateReception-fm (4 handlers)
+[GIN-debug] PUT    /api/receptions/:id/status --> wms-backend/internal/handlers.(*Handler).UpdateReceptionStatus-fm (4 handlers)
+[GIN-debug] GET    /api/dispatches           --> wms-backend/internal/handlers.(*Handler).GetDispatches-fm (4 handlers)
+[GIN-debug] POST   /api/dispatches           --> wms-backend/internal/handlers.(*Handler).CreateDispatch-fm (4 handlers)
+[GIN-debug] GET    /api/returns              --> wms-backend/internal/handlers.(*Handler).GetReturns-fm (4 handlers)
+[GIN-debug] POST   /api/returns              --> wms-backend/internal/handlers.(*Handler).CreateReturn-fm (4 handlers)
+[GIN-debug] GET    /api/quality-checks       --> wms-backend/internal/handlers.(*Handler).GetQualityChecks-fm (4 handlers)
+[GIN-debug] POST   /api/quality-checks       --> wms-backend/internal/handlers.(*Handler).CreateQualityCheckRecord-fm (4 handlers)
+[GIN-debug] GET    /api/inventory-monitoring --> wms-backend/internal/handlers.(*Handler).GetInventoryMonitoring-fm (4 handlers)
+[GIN-debug] POST   /api/receiving            --> wms-backend/internal/handlers.(*Handler).CreateReceiving-fm (4 handlers)
+[GIN-debug] GET    /api/receiving            --> wms-backend/internal/handlers.(*Handler).GetReceivings-fm (4 handlers)
+[GIN-debug] POST   /api/issuing              --> wms-backend/internal/handlers.(*Handler).CreateIssuing-fm (4 handlers)
+[GIN-debug] GET    /api/issuing              --> wms-backend/internal/handlers.(*Handler).GetIssuings-fm (4 handlers)
+[GIN-debug] GET    /api/suppliers            --> wms-backend/internal/handlers.(*Handler).GetSuppliers-fm (4 handlers)
+[GIN-debug] GET    /api/customers            --> wms-backend/internal/handlers.(*Handler).GetCustomers-fm (4 handlers)
+[GIN-debug] GET    /api/units                --> wms-backend/internal/handlers.(*Handler).GetUnits-fm (4 handlers)
+[GIN-debug] GET    /api/locations            --> wms-backend/internal/handlers.(*Handler).GetLocations-fm (4 handlers)
+[GIN-debug] GET    /api/users                --> wms-backend/internal/handlers.(*Handler).GetUsersGin-fm (5 handlers)
+[GIN-debug] POST   /api/users                --> wms-backend/internal/handlers.(*Handler).CreateUserGin-fm (5 handlers)
+[GIN-debug] GET    /api/products             --> wms-backend/internal/handlers.(*Handler).GetProductsGin-fm (5 handlers)
+[GIN-debug] POST   /api/products             --> wms-backend/internal/handlers.(*Handler).CreateProductGin-fm (5 handlers)
+[GIN-debug] GET    /api/categories           --> wms-backend/internal/handlers.(*Handler).GetCategoriesGin-fm (5 handlers)
+[GIN-debug] GET    /api/health               --> main.main.func1 (4 handlers)
+2025/08/27 15:59:28 Go Backend Server starting on 0.0.0.0:9000
+[GIN-debug] [WARNING] You trusted all proxies, this is NOT safe. We recommend you to set a value.
+Please check https://pkg.go.dev/github.com/gin-gonic/gin#readme-don-t-trust-all-proxies for details.
+[GIN-debug] Listening and serving HTTP on 0.0.0.0:9000
+[GIN-debug] [ERROR] listen tcp 0.0.0.0:9000: bind: address already in use
+2025/08/27 15:59:28 listen tcp 0.0.0.0:9000: bind: address already in use
+exit status 1

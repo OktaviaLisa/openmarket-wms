@@ -1,0 +1,5 @@
+{
+  "dependencies": {
+    "@aws-sdk/util-base64": "^3.310.0"
+  }
+}

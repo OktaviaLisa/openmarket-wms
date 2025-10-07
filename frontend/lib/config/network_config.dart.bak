@@ -1,0 +1,53 @@
+import 'dart:io';
+import 'package:flutter/foundation.dart';
+import '../services/ip_discovery_service.dart';
+
+class NetworkConfig {
+  static const String primaryHostname = 'wms-backend.local';
+  static const int port = 8000;
+  static const String apiPath = '/api';
+  static const Duration connectionTimeout = Duration(seconds: 2);
+  
+  static const List<String> fallbackHosts = [
+    '192.168.1.133',   // Current laptop IP
+    '192.168.1.100',
+    '192.168.1.101',
+    '192.168.1.102',
+    '192.168.0.100', 
+    '192.168.0.101',
+    '192.168.137.177',
+    '10.0.0.100',
+    'localhost',       // Last fallback
+  ];
+  
+  static Future<String> discoverBackend() async {
+    if (kIsWeb) {
+      return 'http://localhost:$port/api';
+    }
+    
+    // Try smart IP discovery first
+    final discoveredIP = await IpDiscoveryService.discoverBackendIP();
+    if (discoveredIP != null) {
+      return 'http://$discoveredIP:$port/api';
+    }
+    
+    // Fallback to static list
+    for (String host in fallbackHosts) {
+      if (await _testConnection(host, port)) {
+        return 'http://$host:$port/api';
+      }
+    }
+    
+    return 'http://$primaryHostname:$port/api';
+  }
+  
+  static Future<bool> _testConnection(String host, int port) async {
+    try {
+      final socket = await Socket.connect(host, port, timeout: const Duration(seconds: 2));
+      socket.destroy();
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+}

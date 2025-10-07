@@ -1,0 +1,80 @@
+services:
+  db:
+    image: postgres:15
+    container_name: db
+    environment:
+      POSTGRES_DB: wms_db
+      POSTGRES_USER: wms_user
+      POSTGRES_PASSWORD: wms_password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U wms_user -d wms_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+    - wms-net
+  backend:
+    build: ./backend
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgres://wms_user:wms_password@db:5432/wms_db?sslmode=disable
+      - JWT_SECRET=your-secret-key
+      - PORT=8000
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
+    networks:
+    - wms-net
+  frontend:
+    image: cirrusci/flutter:stable
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend:/app
+      - flutter_pub_cache:/root/.pub-cache
+    working_dir: /app
+    environment:
+      - CHROME_EXECUTABLE=/usr/bin/google-chrome-stable
+      - API_BASE_URL=http://ming-Lenovo-V110-15AST.local:9000
+    entrypoint: ["flutter"]
+    command: ["run", "-d", "web-server", "--web-port", "3000", "--web-hostname", "0.0.0.0"]
+    depends_on:
+      - backend
+    networks:
+    - wms-net
+
+
+  pgadmin:
+    image: dpage/pgadmin4
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@admin.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+    ports:
+      - "5050:80"
+    depends_on:
+      - db
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    networks:
+    - wms-net
+
+volumes:
+  postgres_data:
+  pgadmin_data:
+  flutter_pub_cache:
+
+networks:
+  wms-net:
+    driver: bridge
