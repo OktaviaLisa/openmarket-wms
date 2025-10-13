@@ -47,7 +47,7 @@ services:
     working_dir: /app
     environment:
       - CHROME_EXECUTABLE=/usr/bin/google-chrome-stable
-      - API_BASE_URL=http://ming-Lenovo-V110-15AST.local:9000
+      - API_BASE_URL=http://localhost:8000
     entrypoint: ["flutter"]
     command: ["run", "-d", "web-server", "--web-port", "3000", "--web-hostname", "0.0.0.0"]
     depends_on:

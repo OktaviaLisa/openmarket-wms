@@ -180,6 +180,16 @@ func createTables() error {
 			created_by INTEGER DEFAULT 1,
 			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 		)`,
+		`CREATE TABLE IF NOT EXISTS quality_checks (
+			id SERIAL PRIMARY KEY,
+			reception_id INTEGER,
+			product_name VARCHAR(200),
+			quantity INTEGER,
+			status VARCHAR(50),
+			notes TEXT,
+			checked_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+		)`,
+
 	}
 
 	for _, query := range queries {

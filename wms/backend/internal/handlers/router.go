@@ -1,9 +1,7 @@
 package handlers
 
 import (
-	"fmt"
 	"net/http"
-	"time"
 	"github.com/gin-gonic/gin"
 	"wms-backend/internal/middleware"
 )
@@ -58,7 +56,7 @@ func SetupRoutes(h *Handler) *gin.Engine {
 		api.POST("/dispatches", h.CreateDispatch)
 		api.GET("/returns", h.GetReturns)
 		api.POST("/returns", h.CreateReturn)
-		api.GET("/quality-checks", h.GetQualityChecks)
+		api.GET("/quality-checks", h.GetQualityChecksSimple)
 		api.POST("/quality-checks", h.CreateQualityCheckRecord)
 		api.GET("/inventory-monitoring", h.GetInventoryMonitoring)
 		
@@ -279,47 +277,34 @@ func (h *Handler) CreateReturn(c *gin.Context) {
 }
 
 func (h *Handler) GetQualityChecks(c *gin.Context) {
-	rows, err := h.DB.Query(`
-		SELECT qc.id, qc.reception_id, qc.product_name, qc.quantity, qc.status, 
-		       COALESCE(qc.notes, '') as notes,
-		       COALESCE(r.category, '') as supplier, 
-		       COALESCE(r.location, '') as location, 
-		       r.received_date
-		FROM quality_checks qc
-		JOIN receptions r ON qc.reception_id = r.id
-		ORDER BY qc.checked_at DESC`)
+	rows, err := h.DB.Query(`SELECT id, reception_id, product_name, quantity, status, COALESCE(notes, '') FROM quality_checks ORDER BY checked_at DESC`)
 	
 	if err != nil {
-		c.JSON(http.StatusOK, []map[string]interface{}{})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error: " + err.Error()})
 		return
 	}
 	defer rows.Close()
 	
-	var qualityChecks []map[string]interface{}
+	var results []map[string]interface{}
 	for rows.Next() {
 		var id, receptionID, quantity int
-		var productName, status, notes, supplier, location string
-		var receivedDate string
+		var productName, status, notes string
 		
-		err := rows.Scan(&id, &receptionID, &productName, &quantity, &status, &notes, &supplier, &location, &receivedDate)
-		if err != nil {
+		if err := rows.Scan(&id, &receptionID, &productName, &quantity, &status, &notes); err != nil {
 			continue
 		}
 		
-		qualityChecks = append(qualityChecks, map[string]interface{}{
-			"id": receptionID,
+		results = append(results, map[string]interface{}{
+			"id": id,
+			"reception_id": receptionID,
 			"product_name": productName,
-			"supplier": supplier,
 			"quantity": quantity,
-			"location": location,
-			"notes": notes,
-			"date": receivedDate[:10],
 			"status": status,
-			"qc_id": id,
+			"notes": notes,
 		})
 	}
 	
-	c.JSON(http.StatusOK, qualityChecks)
+	c.JSON(http.StatusOK, results)
 }
 
 func (h *Handler) CreateQualityCheckRecord(c *gin.Context) {
@@ -354,9 +339,37 @@ func (h *Handler) CreateQualityCheckRecord(c *gin.Context) {
 		return
 	}
 
+	// Jika status PASS, tambahkan ke inventory
+	if req.Status == "PASS" {
+		// Buat warehouse_product baru untuk setiap quality check
+		_, err = h.DB.Exec(`
+			INSERT INTO warehouse_product (id, name, sku, price, description, created_at)
+			VALUES ($1, $2, $3, 0, 'Product from QC', NOW())
+			ON CONFLICT (id) DO NOTHING`,
+			qcID, req.ProductName, "QC-"+string(rune(qcID)))
+		
+		// Insert data baru ke inventory dengan product_id = qcID
+		_, err = h.DB.Exec(`
+			INSERT INTO inventory (product_id, quantity, min_stock, location_id, quality_check_id, updated_at)
+			VALUES ($1, $2, 0, 1, $3, NOW())`,
+			qcID, req.Quantity, qcID)
+		
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to add to inventory: " + err.Error()})
+			return
+		}
+		
+		// Update reception status ke completed
+		_, err = h.DB.Exec(`UPDATE receptions SET status = 'completed' WHERE id = $1`, req.ReceptionID)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update reception status"})
+			return
+		}
+	}
+
 	c.JSON(http.StatusCreated, gin.H{
 		"id": qcID,
-		"message": "Quality check record created successfully",
+		"message": "Quality check completed and inventory updated",
 	})
 }
 
@@ -364,90 +377,3 @@ func (h *Handler) GetInventoryMonitoring(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "Inventory monitoring endpoint"})
 }
 
-func (h *Handler) CreateInventoryItem(c *gin.Context) {
-	var req struct {
-		ProductName string `json:"product_name" binding:"required"`
-		Category    string `json:"category"`
-		Quantity    int    `json:"quantity" binding:"required"`
-		Location    string `json:"location"`
-		MinStock    int    `json:"min_stock"`
-	}
-
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-
-	// Get or create product
-	var productID int
-	err := h.DB.QueryRow(`
-		SELECT id FROM warehouse_product WHERE name = $1`,
-		req.ProductName,
-	).Scan(&productID)
-
-	if err != nil {
-		// Create product if not exists
-		nameLen := len(req.ProductName)
-		if nameLen > 10 {
-			nameLen = 10
-		}
-		sku := "QC-" + req.ProductName[:nameLen] + "-" + fmt.Sprintf("%d", time.Now().Unix()%10000)
-		err = h.DB.QueryRow(`
-			INSERT INTO warehouse_product (name, sku, price, created_at)
-			VALUES ($1, $2, $3, NOW())
-			RETURNING id`,
-			req.ProductName, sku, 0.00,
-		).Scan(&productID)
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create product"})
-			return
-		}
-	}
-
-	// Default location ID = 1
-	locationID := 1
-
-	// Check if inventory item already exists
-	var existingID int
-	err = h.DB.QueryRow(`
-		SELECT id FROM inventory 
-		WHERE product_id = $1 AND location_id = $2`,
-		productID, locationID,
-	).Scan(&existingID)
-
-	if err == nil {
-		// Update existing inventory
-		_, err = h.DB.Exec(`
-			UPDATE inventory 
-			SET quantity = quantity + $1, updated_at = NOW()
-			WHERE id = $2`,
-			req.Quantity, existingID,
-		)
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update inventory"})
-			return
-		}
-		c.JSON(http.StatusOK, gin.H{"message": "Inventory updated successfully", "id": existingID})
-	} else {
-		// Create new inventory item
-		minStock := req.MinStock
-		if minStock == 0 {
-			minStock = 10
-		}
-
-		var inventoryID int
-		err := h.DB.QueryRow(`
-			INSERT INTO inventory (product_id, quantity, min_stock, location_id, updated_at)
-			VALUES ($1, $2, $3, $4, NOW())
-			RETURNING id`,
-			productID, req.Quantity, minStock, locationID,
-		).Scan(&inventoryID)
-
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create inventory item"})
-			return
-		}
-
-		c.JSON(http.StatusCreated, gin.H{"message": "Inventory item created successfully", "id": inventoryID})
-	}
-}

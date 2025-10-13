@@ -28,7 +28,7 @@ class _QualityControlScreenState extends State<QualityControlScreen> {
       final existingQCs = await _apiService.getQualityChecks();
       final qcMap = <int, Map<String, dynamic>>{};
       for (var qc in existingQCs) {
-        qcMap[qc['id']] = qc;
+        qcMap[qc['reception_id']] = qc; // Use reception_id as key
       }
       
       // Load receptions with quality_check status
@@ -46,7 +46,7 @@ class _QualityControlScreenState extends State<QualityControlScreen> {
             'location': item['location'],
             'notes': item['notes'],
             'date': item['date'],
-            'status': existingQC?['status'] ?? 'PENDING',
+            'status': existingQC != null ? existingQC['status'] : 'PENDING',
             'check_type': 'INCOMING',
           });
         }
@@ -228,13 +228,8 @@ class _QualityControlScreenState extends State<QualityControlScreen> {
         'notes': 'QC performed via mobile app',
       });
       
-      // Update local state
-      setState(() {
-        final index = _qualityChecks.indexWhere((check) => check['id'] == item['id']);
-        if (index != -1) {
-          _qualityChecks[index]['status'] = status;
-        }
-      });
+      // Reload data to get updated status
+      await _loadQualityChecks();
       
       // Jika status PASS, simpan ke inventory
       if (status == 'PASS') {

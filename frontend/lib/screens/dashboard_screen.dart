@@ -209,9 +209,13 @@ class DashboardScreenState extends State<DashboardScreen> {
             
             // Main menu horizontal ListView
             SizedBox(
-              height: 150, // tinggi card
+            height: 150,
+            width: double.infinity,
+            child: Center( // ini yang bikin seluruh listView ke tengah
               child: ListView(
+                shrinkWrap: true, // biar ukurannya pas konten
                 scrollDirection: Axis.horizontal,
+                physics: const BouncingScrollPhysics(),
                 children: [
                   _buildMenuCard('Inventory', Icons.inventory_2_outlined, Colors.red),
                   _buildMenuCard('Transaksi ', Icons.receipt_long, Colors.red),
@@ -221,12 +225,18 @@ class DashboardScreenState extends State<DashboardScreen> {
                   _buildMenuCard('Pengeluaran', Icons.arrow_upward, Colors.red),
                   _buildMenuCard('Retur', Icons.refresh, Colors.red),
                   _buildMenuCard('Lokasi Rak', Icons.grid_view, Colors.red),
-                ].map((card) => Padding(
-                  padding: const EdgeInsets.only(right: 12),
-                  child: card,
-                )).toList(),
+                ]
+                    .map(
+                      (card) => Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                        child: card,
+                      ),
+                    )
+                    .toList(),
               ),
             ),
+          ),
+
 
 
             // Charts section

@@ -1,9 +1,7 @@
 package handlers
 
 import (
-	"fmt"
 	"net/http"
-	"time"
 	"github.com/gin-gonic/gin"
 	"wms-backend/internal/middleware"
 )
@@ -58,7 +56,7 @@ func SetupRoutes(h *Handler) *gin.Engine {
 		api.POST("/dispatches", h.CreateDispatch)
 		api.GET("/returns", h.GetReturns)
 		api.POST("/returns", h.CreateReturn)
-		api.GET("/quality-checks", h.GetQualityChecks)
+		api.GET("/quality-checks", h.GetQualityChecksSimple)
 		api.POST("/quality-checks", h.CreateQualityCheckRecord)
 		api.GET("/inventory-monitoring", h.GetInventoryMonitoring)
 		
@@ -88,8 +86,6 @@ func SetupRoutes(h *Handler) *gin.Engine {
 
 	return r
 }
-
-
 
 
 
@@ -284,13 +280,13 @@ func (h *Handler) GetQualityChecks(c *gin.Context) {
 		       COALESCE(qc.notes, '') as notes,
 		       COALESCE(r.category, '') as supplier, 
 		       COALESCE(r.location, '') as location, 
-		       r.received_date
+		       TO_CHAR(r.received_date, 'YYYY-MM-DD') as date
 		FROM quality_checks qc
-		JOIN receptions r ON qc.reception_id = r.id
+		LEFT JOIN receptions r ON qc.reception_id = r.id
 		ORDER BY qc.checked_at DESC`)
 	
 	if err != nil {
-		c.JSON(http.StatusOK, []map[string]interface{}{})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch quality checks"})
 		return
 	}
 	defer rows.Close()
@@ -298,10 +294,9 @@ func (h *Handler) GetQualityChecks(c *gin.Context) {
 	var qualityChecks []map[string]interface{}
 	for rows.Next() {
 		var id, receptionID, quantity int
-		var productName, status, notes, supplier, location string
-		var receivedDate string
+		var productName, status, notes, supplier, location, date string
 		
-		err := rows.Scan(&id, &receptionID, &productName, &quantity, &status, &notes, &supplier, &location, &receivedDate)
+		err := rows.Scan(&id, &receptionID, &productName, &quantity, &status, &notes, &supplier, &location, &date)
 		if err != nil {
 			continue
 		}
@@ -313,7 +308,7 @@ func (h *Handler) GetQualityChecks(c *gin.Context) {
 			"quantity": quantity,
 			"location": location,
 			"notes": notes,
-			"date": receivedDate[:10],
+			"date": date,
 			"status": status,
 			"qc_id": id,
 		})
@@ -364,90 +359,4 @@ func (h *Handler) GetInventoryMonitoring(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "Inventory monitoring endpoint"})
 }
 
-func (h *Handler) CreateInventoryItem(c *gin.Context) {
-	var req struct {
-		ProductName string `json:"product_name" binding:"required"`
-		Category    string `json:"category"`
-		Quantity    int    `json:"quantity" binding:"required"`
-		Location    string `json:"location"`
-		MinStock    int    `json:"min_stock"`
-	}
 
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-
-	// Get or create product
-	var productID int
-	err := h.DB.QueryRow(`
-		SELECT id FROM warehouse_product WHERE name = $1`,
-		req.ProductName,
-	).Scan(&productID)
-
-	if err != nil {
-		// Create product if not exists
-		nameLen := len(req.ProductName)
-		if nameLen > 10 {
-			nameLen = 10
-		}
-		sku := "QC-" + req.ProductName[:nameLen] + "-" + fmt.Sprintf("%d", time.Now().Unix()%10000)
-		err = h.DB.QueryRow(`
-			INSERT INTO warehouse_product (name, sku, price, created_at)
-			VALUES ($1, $2, $3, NOW())
-			RETURNING id`,
-			req.ProductName, sku, 0.00,
-		).Scan(&productID)
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create product"})
-			return
-		}
-	}
-
-	// Default location ID = 1
-	locationID := 1
-
-	// Check if inventory item already exists
-	var existingID int
-	err = h.DB.QueryRow(`
-		SELECT id FROM inventory 
-		WHERE product_id = $1 AND location_id = $2`,
-		productID, locationID,
-	).Scan(&existingID)
-
-	if err == nil {
-		// Update existing inventory
-		_, err = h.DB.Exec(`
-			UPDATE inventory 
-			SET quantity = quantity + $1, updated_at = NOW()
-			WHERE id = $2`,
-			req.Quantity, existingID,
-		)
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update inventory"})
-			return
-		}
-		c.JSON(http.StatusOK, gin.H{"message": "Inventory updated successfully", "id": existingID})
-	} else {
-		// Create new inventory item
-		minStock := req.MinStock
-		if minStock == 0 {
-			minStock = 10
-		}
-
-		var inventoryID int
-		err := h.DB.QueryRow(`
-			INSERT INTO inventory (product_id, quantity, min_stock, location_id, updated_at)
-			VALUES ($1, $2, $3, $4, NOW())
-			RETURNING id`,
-			productID, req.Quantity, minStock, locationID,
-		).Scan(&inventoryID)
-
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create inventory item"})
-			return
-		}
-
-		c.JSON(http.StatusCreated, gin.H{"message": "Inventory item created successfully", "id": inventoryID})
-	}
-}

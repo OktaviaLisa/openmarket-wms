@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+
 	"wms-backend/internal/config"
 	"wms-backend/internal/database"
 	"wms-backend/internal/handlers"
@@ -10,7 +11,9 @@ import (
 func main() {
 	cfg := config.Load()
 
-	// Connect directly to PostgreSQL database
+	log.Println("Go Backend Server starting on 0.0.0.0:" + cfg.Port)
+
+	// Connect to database
 	if err := database.Connect(cfg.DatabaseURL); err != nil {
 		log.Fatal("Failed to connect to database:", err)
 	}
@@ -18,9 +21,9 @@ func main() {
 	// Create handler with database connection
 	h := handlers.NewHandler(database.DB)
 
-	// Setup Gin routes
+	// Setup routes
 	r := handlers.SetupRoutes(h)
 
-	log.Printf("Go Backend Server starting on 0.0.0.0:%s", cfg.Port)
-	log.Fatal(r.Run("0.0.0.0:" + cfg.Port))
+	log.Printf("Server running on http://localhost:%s", cfg.Port)
+	r.Run("0.0.0.0:" + cfg.Port)
 }

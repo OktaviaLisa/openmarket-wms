@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../services/api_service.dart';
 
 class InventoryMonitoringScreen extends StatefulWidget {
   const InventoryMonitoringScreen({super.key});
@@ -8,32 +9,50 @@ class InventoryMonitoringScreen extends StatefulWidget {
 }
 
 class _InventoryMonitoringScreenState extends State<InventoryMonitoringScreen> {
-  final List<Map<String, dynamic>> _inventory = [
-    {
-      'product_name': 'Laptop Dell XPS 13',
-      'current_stock': 48,
-      'min_stock': 10,
-      'status': 'NORMAL',
-      'location': 'Gudang A',
-      'last_updated': '2024-01-15 10:30',
-    },
-    {
-      'product_name': 'Mouse Wireless',
-      'current_stock': 8,
-      'min_stock': 10,
-      'status': 'LOW_STOCK',
-      'location': 'Gudang B',
-      'last_updated': '2024-01-16 14:20',
-    },
-    {
-      'product_name': 'Keyboard Mechanical',
-      'current_stock': 3,
-      'min_stock': 10,
-      'status': 'CRITICAL',
-      'location': 'Gudang A',
-      'last_updated': '2024-01-16 16:45',
-    },
-  ];
+  List<Map<String, dynamic>> _inventory = [];
+  bool _isLoading = true;
+  final ApiService _apiService = ApiService();
+
+  @override
+  void initState() {
+    super.initState();
+    _loadInventory();
+  }
+
+  Future<void> _loadInventory() async {
+    setState(() => _isLoading = true);
+    try {
+      final inventory = await _apiService.getInventory();
+      setState(() {
+        _inventory = inventory.map((item) {
+          final quantity = item['quantity'] ?? 0;
+          final minStock = item['min_stock'] ?? 10;
+          String status;
+          if (quantity <= 0) {
+            status = 'CRITICAL';
+          } else if (quantity <= minStock) {
+            status = 'LOW_STOCK';
+          } else {
+            status = 'NORMAL';
+          }
+          return {
+            'product_name': item['product_name'] ?? 'Unknown',
+            'current_stock': quantity,
+            'min_stock': minStock,
+            'status': status,
+            'location': item['location'] ?? 'Unknown',
+            'last_updated': item['updated_at'] ?? 'Unknown',
+          };
+        }).toList();
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() => _isLoading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error loading inventory: $e')),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -44,48 +63,64 @@ class _InventoryMonitoringScreenState extends State<InventoryMonitoringScreen> {
         foregroundColor: Colors.white,
         actions: [
           IconButton(
-            onPressed: () => setState(() {}),
+            onPressed: _loadInventory,
             icon: const Icon(Icons.refresh),
           ),
         ],
       ),
-      body: Column(
-        children: [
-          _buildSummaryCards(),
-          Expanded(
-            child: ListView.builder(
-              padding: const EdgeInsets.all(8),
-              itemCount: _inventory.length,
-              itemBuilder: (context, index) {
-                final item = _inventory[index];
-                return Card(
-                  margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
-                  child: ListTile(
-                    leading: CircleAvatar(
-                      backgroundColor: _getStatusColor(item['status']).withAlpha(50),
-                      child: Icon(
-                        _getStatusIcon(item['status']),
-                        color: _getStatusColor(item['status']),
-                      ),
-                    ),
-                    title: Text(item['product_name']),
-                    subtitle: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('Stok: ${item['current_stock']} unit'),
-                        Text('Lokasi: ${item['location']}'),
-                        Text('Update: ${item['last_updated']}'),
-                      ],
-                    ),
-                    trailing: _buildStatusChip(item['status']),
-                    isThreeLine: true,
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : _inventory.isEmpty
+              ? const Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.inventory_2_outlined, size: 64, color: Colors.grey),
+                      SizedBox(height: 16),
+                      Text('Tidak ada data inventory', style: TextStyle(fontSize: 16, color: Colors.grey)),
+                    ],
                   ),
-                );
-              },
-            ),
-          ),
-        ],
-      ),
+                )
+              : RefreshIndicator(
+                  onRefresh: _loadInventory,
+                  child: Column(
+                    children: [
+                      _buildSummaryCards(),
+                      Expanded(
+                        child: ListView.builder(
+                          padding: const EdgeInsets.all(8),
+                          itemCount: _inventory.length,
+                          itemBuilder: (context, index) {
+                            final item = _inventory[index];
+                            return Card(
+                              margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+                              child: ListTile(
+                                leading: CircleAvatar(
+                                  backgroundColor: _getStatusColor(item['status']).withAlpha(50),
+                                  child: Icon(
+                                    _getStatusIcon(item['status']),
+                                    color: _getStatusColor(item['status']),
+                                  ),
+                                ),
+                                title: Text(item['product_name']),
+                                subtitle: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text('Stok: ${item['current_stock']} unit'),
+                                    Text('Lokasi: ${item['location']}'),
+                                    Text('Update: ${item['last_updated']}'),
+                                  ],
+                                ),
+                                trailing: _buildStatusChip(item['status']),
+                                isThreeLine: true,
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
     );
   }
 

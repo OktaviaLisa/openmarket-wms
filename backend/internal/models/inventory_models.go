@@ -80,17 +80,12 @@ type Return struct {
 
 // QualityCheck - Pemeriksaan kualitas
 type QualityCheck struct {
-	ID           uint      `json:"id" gorm:"primaryKey"`
-	ProductID    uint      `json:"product_id"`
-	Product      Product   `json:"product" gorm:"foreignKey:ProductID"`
-	CheckType    string    `json:"check_type"` // INCOMING, OUTGOING, RETURN
-	ReferenceID  uint      `json:"reference_id"`
-	Status       string    `json:"status"` // PASS, FAIL, PENDING
-	CheckedQty   int       `json:"checked_qty"`
-	PassedQty    int       `json:"passed_qty"`
-	FailedQty    int       `json:"failed_qty"`
-	Notes        string    `json:"notes"`
-	CheckedBy    uint      `json:"checked_by"`
-	CreatedAt    time.Time `json:"created_at"`
-	UpdatedAt    time.Time `json:"updated_at"`
+	ID          uint      `gorm:"primaryKey" json:"id"`
+	ReceptionID int       `json:"reception_id"`
+	ProductName string    `json:"product_name"`
+	Quantity    int       `json:"quantity"`
+	Status      string    `json:"status"`
+	Notes       string    `json:"notes"`
+	CheckedAt   time.Time `json:"checked_at"`
 }
+

@@ -11,8 +11,8 @@ type Config struct {
 
 func Load() *Config {
 	return &Config{
-		DatabaseURL: getEnv("DATABASE_URL", "postgres://wms_user:wms_password@127.0.0.1:5432/wms_db?sslmode=disable"),
-		APIURL:      getEnv("API_URL", "http://localhost:8081"),
+		DatabaseURL: getEnv("DATABASE_URL", "postgres://wms_user:wms_password@db:5432/wms_db?sslmode=disable"),
+		APIURL:      getEnv("API_URL", "http://localhost:8000"),
 		JWTSecret:   getEnv("JWT_SECRET", "your-secret-key"),
 		Port:        getEnv("PORT", "8000"),
 	}
